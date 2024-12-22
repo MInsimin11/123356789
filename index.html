@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>跌倒检测系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="跌倒检测系统 - 实时监测和记录跌倒事件">
+    <meta name="keywords" content="跌倒检测,老人关怀,安全监测">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chart-container {
+            margin: 20px 0;
+        }
+        .emergency-contact {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .emergency-call-btn {
+            margin-left: 10px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .emergency-call-btn:hover {
+            background-color: #cc0000;
+        }
+        #fallList {
+            list-style: none;
+            padding: 0;
+        }
+        
+        #fallList li {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+        }
+        
+        #fallList li span {
+            font-weight: bold;
+        }
+        .location-info, .device-status, .health-report {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .battery-bar {
+            width: 100px;
+            height: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .battery-bar div {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        .report-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .update-btn, .report-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .update-btn:hover, .report-btn:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>跌倒检测系统</h1>
+        
+        <div class="file-upload">
+            <input type="file" id="csvFile" accept=".csv">
+            <button onclick="processFile()">上传并分析</button>
+        </div>
+
+        <div class="emergency-contact">
+            <h2>紧急联系人设置</h2>
+            <input type="text" id="contactName" placeholder="联系人姓名">
+            <input type="tel" id="contactPhone" placeholder="联系人电话">
+            <button onclick="saveContact()">保存联系人</button>
+            <button onclick="emergencyCall()" class="emergency-call-btn">紧急呼叫</button>
+        </div>
+
+        <div class="location-info">
+            <h2>位置信息</h2>
+            <div id="locationDisplay">等待获取位置...</div>
+            <button onclick="updateLocation()" class="update-btn">更新位置</button>
+        </div>
+
+        <div class="device-status">
+            <h2>装置状态</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-label">电量:</span>
+                    <div id="batteryLevel">
+                        <div class="battery-bar"></div>
+                        <span class="battery-text">--</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">气囊状态:</span>
+                    <span id="airbagStatus" class="status-value">正常</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">设备状态:</span>
+                    <span id="deviceStatus" class="status-value">在线</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="health-report">
+            <h2>健康数据分析</h2>
+            <div class="report-summary">
+                <div class="stat-item">
+                    <span class="stat-label">今日步数:</span>
+                    <span id="stepCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">本月跌倒次数:</span>
+                    <span id="monthlyFalls" class="stat-value">0</span>
+                </div>
+            </div>
+            <canvas id="healthTrendChart"></canvas>
+            <button onclick="generateReport()" class="report-btn">生成分析报告</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="accelerationChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="gyroscopeChart"></canvas>
+        </div>
+
+        <div id="fallRecords">
+            <h2>跌倒记录</h2>
+            <ul id="fallList"></ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
